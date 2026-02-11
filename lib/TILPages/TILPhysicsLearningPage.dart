@@ -1,0 +1,750 @@
+import 'package:flutter/material.dart';
+import 'TILIDashboard.dart';
+import '../widgets/theme_toggle.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../UserProvider.dart';
+import 'TILMembershipPage.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../MyColors.dart';
+import '../BocconiPages/home_page.dart';
+import '../widgets/video_player_screen.dart';
+
+
+class TILPhysicsLearningPage extends StatefulWidget {
+  final VoidCallback toggleTheme;
+  const TILPhysicsLearningPage({super.key, required this.toggleTheme});
+
+  @override
+  State<TILPhysicsLearningPage> createState() => _TILPhysicsLearningPageState();
+}
+
+class _TILPhysicsLearningPageState extends State<TILPhysicsLearningPage> {
+  final PageController _pdfController = PageController();
+  int _currentPdfPage = 0;
+  final int _totalPdfPages = 4;
+  int _activeTab = 0; // 0 for Study Guide (PDF), 1 for Video Lectures
+
+  // PDF page images (placeholder - use actual PDF images)
+  static const List<String> pdfPageContents = [
+    'Page 1: Vectors & Units of Measurement',
+    'Page 2: Kinematics & Forces',
+    'Page 3: Work-energy & Dynamics',
+    'Page 4: Thermodynamics & Electrostatics',
+  ];
+
+  static const List<Map<String, String>> videoData = [
+    {
+      'title': 'Electric Circuits',
+      'url': 'https://practico.b-cdn.net/Electric%20Circuits.mp4',
+    },
+    {
+      'title': 'Forces',
+      'url': 'https://practico.b-cdn.net/Forces.mp4',
+    },
+    {
+      'title': 'Measurement Units',
+      'url': 'https://practico.b-cdn.net/Measurement%20Units.mp4',
+      'isFree': 'true',
+    },
+    {
+      'title': 'Vectors',
+      'url': 'https://practico.b-cdn.net/Vectors.mp4',
+    },
+    {
+      'title': 'Work-Energy',
+      'url': 'https://practico.b-cdn.net/Work-Energy.mp4',
+    },
+  ];
+
+  @override
+  void dispose() {
+    _pdfController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF0B1622) : const Color(0xFFF5F7FA);
+    final text = isDark ? Colors.white : const Color(0xFF1A1A2E);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 900;
+
+    return Scaffold(
+      backgroundColor: bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isDesktop ? 40 : 20,
+                vertical: 20,
+              ),
+              child: _buildHeader(context, isDark, text),
+            ),
+            _buildTabSelector(isDark, text, isDesktop),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: isDesktop ? 40 : 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    if (_activeTab == 0) ...[
+                      _buildTitleWithDownload(isDark, text),
+                      const SizedBox(height: 24),
+                      _buildPdfViewer(isDark, text, isDesktop),
+                    ] else ...[
+                      _buildVideoSection(isDark, text),
+                    ],
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabSelector(bool isDark, Color text, bool isDesktop) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: isDesktop ? 40 : 20, vertical: 8),
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1A2332) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? const Color(0xFF2A3A4A) : Colors.grey.withOpacity(0.1)),
+      ),
+      child: Row(
+        children: [
+          _buildTabItem(0, "Study Guide", Icons.description_rounded, isDark, text),
+          _buildTabItem(1, "Video Lectures", Icons.play_lesson_rounded, isDark, text),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabItem(int index, String label, IconData icon, bool isDark, Color text) {
+    bool isActive = _activeTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _activeTab = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isActive 
+                ? (isDark ? const Color(0xFF6B4EE6) : const Color(0xFF6B4EE6))
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon, 
+                color: isActive ? Colors.white : text.withOpacity(0.5), 
+                size: 18
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                  color: isActive ? Colors.white : text.withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, bool isDark, Color text) {
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1A2332) : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: isDark ? const Color(0xFF2A3A4A) : Colors.grey.withOpacity(0.2)),
+            ),
+            child: Icon(Icons.arrow_back_ios_new_rounded, color: text, size: 18),
+          ),
+        ),
+        const SizedBox(width: 16),
+        // Physics Badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFF6B4EE6), Color(0xFF9B6DFF)]),
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.blur_circular_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text("PHYSICS", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 1)),
+            ],
+          ),
+        ),
+        const Spacer(),
+        SunMoonToggle(isDark: isDark, onToggle: widget.toggleTheme),
+      ],
+    );
+  }
+
+  Widget _buildTitleWithDownload(bool isDark, Color text) {
+    if (_activeTab == 1) return const SizedBox.shrink(); // Hide formulas title when on videos tab
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Study Guide", style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.bold, color: text)),
+              const SizedBox(height: 4),
+              Text("Complete reference and concepts", style: GoogleFonts.inter(fontSize: 14, color: text.withOpacity(0.5))),
+            ],
+          ),
+        ),
+        // Download Button
+        GestureDetector(
+          onTap: () {},
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF00C9A7), Color(0xFF00D9B5)]),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(color: const Color(0xFF00C9A7).withOpacity(0.4), blurRadius: 15, offset: const Offset(0, 5)),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.download_rounded, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Text("Download PDF", style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPdfViewer(bool isDark, Color text, bool isDesktop) {
+    return Column(
+      children: [
+        // PDF Pages Carousel
+        SizedBox(
+          height: isDesktop ? 450 : 350,
+          child: PageView.builder(
+            controller: _pdfController,
+            onPageChanged: (index) => setState(() => _currentPdfPage = index),
+            itemCount: _totalPdfPages,
+            itemBuilder: (context, index) => _buildPdfPage(isDark, text, index),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Page Indicators
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Previous Button
+            GestureDetector(
+              onTap: _currentPdfPage > 0 ? () => _pdfController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1A2332) : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: isDark ? const Color(0xFF2A3A4A) : Colors.grey.withOpacity(0.2)),
+                ),
+                child: Icon(Icons.chevron_left_rounded, color: _currentPdfPage > 0 ? text : text.withOpacity(0.3), size: 22),
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Page Dots
+            ...List.generate(_totalPdfPages, (index) => Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: _currentPdfPage == index ? 24 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _currentPdfPage == index ? const Color(0xFF00C9A7) : (isDark ? const Color(0xFF2A3A4A) : Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            )),
+            const SizedBox(width: 16),
+            // Next Button
+            GestureDetector(
+              onTap: _currentPdfPage < _totalPdfPages - 1 ? () => _pdfController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut) : null,
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1A2332) : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: isDark ? const Color(0xFF2A3A4A) : Colors.grey.withOpacity(0.2)),
+                ),
+                child: Icon(Icons.chevron_right_rounded, color: _currentPdfPage < _totalPdfPages - 1 ? text : text.withOpacity(0.3), size: 22),
+              ),
+            ),
+            const SizedBox(width: 20),
+            // Page Number
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00C9A7),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text("${_currentPdfPage + 1} / $_totalPdfPages", style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPdfPage(bool isDark, Color text, int index) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F1C2E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF00C9A7).withOpacity(0.3), width: 2),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(isDark ? 0.4 : 0.1), blurRadius: 30, offset: const Offset(0, 10)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          children: [
+            // PDF Content Placeholder
+            Positioned.fill(
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00C9A7).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF00C9A7).withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text("TIL-I PHYSICS FORMULAS", style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF00C9A7))),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Content placeholder
+                    Text(pdfPageContents[index], style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: text)),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1A2332).withOpacity(0.5) : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Text(
+                            "PDF Content Area\n\nActual PDF pages will be\ndisplayed here",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 14, color: text.withOpacity(0.4)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoSection(bool isDark, Color text) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final bool hasPackage = authProvider.hasTiliPackage;
+
+    final physicsVideos = videoData.map((v) {
+      final isFree = v['isFree'] == 'true';
+      return {
+        'title': v['title'],
+        'url': v['url'],
+        'locked': !hasPackage && !isFree,
+      };
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Video Lectures",
+                  style: GoogleFonts.inter(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: text,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Master physics with interactive video modules",
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: text.withOpacity(0.5),
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: (isDark ? const Color(0xFF1E293B) : Colors.white).withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: (isDark ? Colors.white : Colors.black).withOpacity(0.05)),
+              ),
+              child: Text(
+                "${physicsVideos.length} LESSONS",
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: (isDark ? const Color(0xFF6B4EE6) : const Color(0xFF6B4EE6)).withOpacity(0.8),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: MediaQuery.of(context).size.width > 1200 ? 3 : (MediaQuery.of(context).size.width > 600 ? 2 : 1),
+            crossAxisSpacing: 20,
+            mainAxisSpacing: 20,
+            childAspectRatio: 1.5,
+          ),
+          itemCount: physicsVideos.length,
+          itemBuilder: (context, index) {
+            final v = physicsVideos[index];
+            return _buildVideoCard(
+              isDark, 
+              v['title'] as String, 
+              v['locked'] == true,
+              text,
+              v['url'] as String,
+              index,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVideoCard(bool isDark, String title, bool isLocked, Color text, String url, int index) {
+    // Determine progress for mockup feel
+    double progress = (index == 0) ? 0.75 : (index == 2 ? 1.0 : 0.0);
+    String duration = (index % 2 == 0) ? "24:15" : "18:30";
+    bool isCompleted = progress >= 1.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF141A26) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isLocked 
+            ? Colors.amber.withOpacity(0.2) 
+            : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04)),
+          width: 2,
+        ),
+        boxShadow: [
+          if (!isDark) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          onTap: isLocked 
+              ? _showUpgradeDialog 
+              : () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => VideoPlayerScreen(videoUrl: url, title: title),
+                    ),
+                  ),
+          child: Stack(
+            children: [
+              // Use a gradient or placeholder for thumbnail
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.8),
+                        Colors.black.withOpacity(0.2),
+                      ],
+                    ),
+                  ),
+                  child: Opacity(
+                    opacity: 0.3,
+                    child: Icon(
+                      _activeTab == 0 ? Icons.description_rounded : Icons.blur_circular_rounded, 
+                      size: 100, 
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Top Overlay (Duration / Case)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    duration,
+                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ),
+              ),
+
+              if (isCompleted)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B4EE6),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      "COMPLETED",
+                      style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white),
+                    ),
+                  ),
+                ),
+
+              // Play Button
+              Center(
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withOpacity(0.4), width: 1),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      isLocked ? Icons.lock_rounded : (isCompleted ? Icons.check_rounded : Icons.play_arrow_rounded), 
+                      color: Colors.white, 
+                      size: 24
+                    ),
+                  ),
+                ),
+              ),
+
+              // Bottom Info
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 20,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 12),
+                    // Progress Bar
+                    Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: (progress * 100).toInt(),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isCompleted ? const Color(0xFF6B4EE6) : const Color(0xFF6B4EE6),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: ((1 - progress) * 100).toInt(),
+                            child: const SizedBox.shrink(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isLocked ? "LOCKED" : (isCompleted ? "COMPLETED" : "IN PROGRESS"),
+                          style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.5)),
+                        ),
+                        Text(
+                          "${(progress * 100).toInt()}%",
+                          style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.8)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              if (isLocked)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withOpacity(0.4),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchVideo(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch video')),
+        );
+      }
+    }
+  }
+
+  void _showUpgradeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 400),
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E2E),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                blurRadius: 40,
+                offset: const Offset(0, 20),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.lock_rounded, color: Colors.amber, size: 32),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                "Upgrade Required",
+                style: GoogleFonts.inter(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                "This video lecture is part of the premium curriculum. Upgrade to access all physics video lessons and PDF guides.",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: Colors.white70,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 28),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TILMembershipPage(toggleTheme: widget.toggleTheme),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber.shade700,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 54),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                child: const Text("SEE UPGRADE PLANS", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("Maybe Later", style: TextStyle(color: Colors.white.withOpacity(0.5))),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

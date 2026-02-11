@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:untitled5/AddTestPage.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
+
+import 'package:untitled5/publicPages/FreeTrialHomePage.dart';
+import 'TILFreePages/TILFreeDashboard.dart';
+import 'BocconiPages/home_page.dart';
+
+import 'BocconiPages/signup_page.dart';
+import 'BocconiPages/welcome_page.dart';
+import 'MainPages/Dashboard.dart';
 import 'UserProvider.dart';
-import 'pages/welcome_page.dart';
-import 'pages/home_page.dart';
+import 'formals/DSAgreement.dart';
+import 'formals/PrivacyPolicy.dart';
+import 'formals/Terms.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final authProvider = AuthProvider();
+  usePathUrlStrategy();
 
-  // Eski oturumu kontrol et
+  final authProvider = AuthProvider();
   await authProvider.checkPreviousSession();
 
   runApp(
@@ -44,13 +54,13 @@ class _EducationPlatformAppState extends State<EducationPlatformApp> {
       themeMode: _themeMode,
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0f1419), // Daha derin siyah-lacivert
-        primaryColor: const Color(0xFF0046ad), // Bocco Blue
+        scaffoldBackgroundColor: const Color(0xFF0f1419),
+        primaryColor: const Color(0xFF0046ad),
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF0046ad), // Bocco Blue
-          secondary: Color(0xFF324d3b), // Green Dark
-          tertiary: Color(0xFF324159), // Grey
-          surface: Color(0xFF1a1f2e), // Card/Surface rengi
+          primary: Color(0xFF0046ad),
+          secondary: Color(0xFF324d3b),
+          tertiary: Color(0xFF324159),
+          surface: Color(0xFF1a1f2e),
           background: Color(0xFF0f1419),
           onPrimary: Colors.white,
           onSecondary: Colors.white,
@@ -93,12 +103,12 @@ class _EducationPlatformAppState extends State<EducationPlatformApp> {
       ),
       theme: ThemeData(
         brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color(0xFFf5f7fa), // Hafif gri-beyaz
-        primaryColor: const Color(0xFF0046ad), // Bocco Blue
+        scaffoldBackgroundColor: const Color(0xFFf5f7fa),
+        primaryColor: const Color(0xFF0046ad),
         colorScheme: const ColorScheme.light(
-          primary: Color(0xFF0046ad), // Bocco Blue
-          secondary: Color(0xFF324d3b), // Green Dark
-          tertiary: Color(0xFF324159), // Grey
+          primary: Color(0xFF0046ad),
+          secondary: Color(0xFF324d3b),
+          tertiary: Color(0xFF324159),
           surface: Colors.white,
           background: Color(0xFFf5f7fa),
           onPrimary: Colors.white,
@@ -147,21 +157,72 @@ class _EducationPlatformAppState extends State<EducationPlatformApp> {
           ),
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Color(0xFF324d3b), // Green Dark accent
+          backgroundColor: Color(0xFF324d3b),
         ),
       ),
-      home: Consumer<AuthProvider>(
-        builder: (context, authProvider, _) {
-          if (authProvider.isAuthenticated && authProvider.token != null) {
-            return HomePage(
-              toggleTheme: toggleTheme,
-              token: authProvider.token!,
-            );
-          }
-          return    WelcomePage(toggleTheme: toggleTheme);
-        },
-      ),
+
+      home: AuthGate(toggleTheme: toggleTheme),
+
+      routes: {
+        '/terms': (context) => TermsPage(),
+        '/privacy': (context) => PrivacyPolicyPage(),
+        '/distance_sales_agreement': (context) => DSAgreementPage(),
+        '/app': (context) => AuthGate(toggleTheme: toggleTheme),
+        '/free-trial': (context) => FreeTrialHomePage(toggleTheme: toggleTheme),
+        '/signup': (context) => SignUpPage(toggleTheme: toggleTheme),
+        '/tili': (context) => TILFreeDashboard(toggleTheme: toggleTheme),
+      },
+
+      onUnknownRoute: (settings) {
+        return MaterialPageRoute(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    '404',
+                    style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Page not found'),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pushReplacementNamed(context, '/app'),
+                    child: const Text('Go to Home'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
       debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  final VoidCallback toggleTheme;
+
+  const AuthGate({super.key, required this.toggleTheme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<AuthProvider, ({bool isAuth, String? token})>(
+      selector: (_, authProvider) => (
+      isAuth: authProvider.isAuthenticated,
+      token: authProvider.token,
+      ),
+      builder: (context, authState, _) {
+        if (authState.isAuth && authState.token != null) {
+          return DashboardPage(
+            toggleTheme: toggleTheme,
+            token: authState.token!,
+          );
+        }
+        return WelcomePage(toggleTheme: toggleTheme);
+      },
     );
   }
 }

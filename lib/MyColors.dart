@@ -3,6 +3,9 @@ import 'dart:ui';
 class MyColors{
   static const  Color bocco_blue = Color.fromARGB(255, 0, 70, 173);
   static const  Color white= Color.fromARGB(255, 255, 255, 255);
+  static const  Color gradient2= Color.fromARGB(255, 206, 206, 206);
+  static const  Color gradient1= Color.fromARGB(255, 150, 150, 150);
+
   static const  Color green = Color.fromARGB(255, 1, 60, 63);
   static const  Color black = Color.fromARGB(255, 0, 0, 0);
   static const  Color red = Color.fromARGB(255, 180, 6, 6);
@@ -12,8 +15,12 @@ class MyColors{
   static const  Color earth = Color.fromARGB(255, 164, 134, 45);
   static const  Color earthy_green
 
+
   = Color.fromARGB(255, 50, 77, 59);
   static const Color orange = Color.fromARGB(255, 176, 116, 1);
+
+  static const Color cyan2= Color.fromARGB(255, 61, 109, 111);
+
 
   static const Color softBeige = Color.fromARGB(255, 245, 238, 220);
   static const Color lightCream = Color.fromARGB(255, 250, 248, 240);

@@ -10,10 +10,8 @@ class AuthService {
   void _handleError(DioException e, {String? customMessage}) {
     String msg;
 
-    // ✅ Network bağlantısı yok - Öncelikli kontrol
     if (e.type == DioExceptionType.connectionError ||
         e.type == DioExceptionType.unknown) {
-      // Daha spesifik kontrol
       if (e.error.toString().contains('SocketException') ||
           e.error.toString().contains('Failed host lookup') ||
           e.message?.contains('Failed host lookup') == true) {
@@ -22,7 +20,6 @@ class AuthService {
         msg = "Network error. Please check your connection.";
       }
     }
-    // ✅ Timeout hataları
     else if (e.type == DioExceptionType.connectionTimeout) {
       msg = "Connection timeout. Please check your internet.";
     }
@@ -32,11 +29,9 @@ class AuthService {
     else if (e.type == DioExceptionType.sendTimeout) {
       msg = "Request timeout. Please check your connection.";
     }
-    // ✅ Server response varsa
     else if (e.response?.data != null && e.response!.data is Map) {
       msg = e.response!.data["msg"] ?? customMessage ?? "An error occurred";
     }
-    // ✅ Diğer hatalar
     else {
       msg = customMessage ?? "An error occurred. Please try again.";
     }
@@ -51,10 +46,7 @@ class AuthService {
     );
   }
 
-  // ==========================================
   // LOGIN & SIGNUP
-  // ==========================================
-
   login(email, password) async {
     try {
       return await dio.post(
@@ -78,6 +70,22 @@ class AuthService {
     }
   }
 
+  googleLogin(String idToken) async {
+    try {
+      return await dio.post(
+          "https://testauth-153e5c716660.herokuapp.com/authenticate-google",
+          data: {"idToken": idToken},
+          options: Options(
+            contentType: Headers.jsonContentType,
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Google Sign-In failed.");
+      rethrow;
+    }
+  }
+
   signup(name, password, email) async {
     try {
       return await dio.post(
@@ -94,10 +102,7 @@ class AuthService {
     }
   }
 
-  // ==========================================
   // USER INFO & SESSION
-  // ==========================================
-
   getinfo(token) async {
     try {
       dio.options.headers["Authorization"] = "Bearer $token";
@@ -116,16 +121,29 @@ class AuthService {
   heartbeat(String token) async {
     try {
       dio.options.headers["Authorization"] = "Bearer $token";
-      return await dio.post(
+      final response = await dio.post(
           "https://testauth-153e5c716660.herokuapp.com/heartbeat",
           options: Options(
             contentType: Headers.jsonContentType,
             validateStatus: (status) => status != null && status < 500,
           )
       );
+
+      // ✅ Session expired kontrolü
+      if (response.statusCode == 401) {
+        print("⚠️ [HEARTBEAT] 401 - Session expired");
+        throw DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          type: DioExceptionType.badResponse,
+          error: 'Session expired',
+        );
+      }
+
+      return response;
     } on DioException catch (e) {
-      // ✅ Heartbeat için log yeterli - toast gösterme
-      print("⚠️ Heartbeat failed: ${e.message}");
+      print("⚠️ [HEARTBEAT] Failed: ${e.message}");
+      print("⚠️ [HEARTBEAT] Status: ${e.response?.statusCode}");
       rethrow;
     }
   }
@@ -146,10 +164,7 @@ class AuthService {
     }
   }
 
-  // ==========================================
   // USER PREFERENCES
-  // ==========================================
-
   updateDarkMode(String token, bool isDarkMode) async {
     try {
       dio.options.headers["Authorization"] = "Bearer $token";
@@ -186,10 +201,7 @@ class AuthService {
     }
   }
 
-  // ==========================================
   // EMAIL VERIFICATION (SIGNUP)
-  // ==========================================
-
   sendOTP(String email) async {
     try {
       return await dio.post(
@@ -238,10 +250,7 @@ class AuthService {
     }
   }
 
-  // ==========================================
   // PASSWORD RESET
-  // ==========================================
-
   sendPasswordResetOTP(String email) async {
     try {
       return await dio.post(
@@ -290,10 +299,7 @@ class AuthService {
     }
   }
 
-  // ==========================================
   // PRACTICE TESTS
-  // ==========================================
-
   addPracticeTest({
     required int index,
     required String title,
@@ -348,10 +354,7 @@ class AuthService {
     }
   }
 
-  // ==========================================
   // SUBJECT TESTS
-  // ==========================================
-
   addSubjectTest({
     required String subject,
     required int index,
@@ -379,11 +382,9 @@ class AuthService {
       rethrow;
     }
   }
-// authservice.dart içindeki getSubjectTest fonksiyonunu bununla değiştir:
 
   getSubjectTest(String subject, int index) async {
     try {
-      // ✅ subject'i normalize et
       String normalizedSubject = _normalizeSubject(subject);
 
       print('🔍 [SUBJECT TEST] Requesting: $normalizedSubject - $index');
@@ -400,12 +401,7 @@ class AuthService {
     }
   }
 
-// ✅ Helper fonksiyon - subject ismini normalize et
   String _normalizeSubject(String subject) {
-    // "logic" -> "Logic"
-    // "reading_comprehension" -> "Reading Comprehension"
-    // "numerical_reasoning" -> "Numerical Reasoning"
-
     Map<String, String> subjectMap = {
       'logic': 'Logic',
       'Logic': 'Logic',
@@ -437,10 +433,81 @@ class AuthService {
     }
   }
 
-  // ==========================================
-  // PRACTICE TEST RESULTS
-  // ==========================================
+  // TILI SUBJECT TESTS (Text-based)
+  getTILSubjectTest(String subject, int index) async {
+    try {
+      String normalizedSubject = _normalizeTILSubject(subject);
+      print('🔍 [TILI SUBJECT TEST] Requesting: $normalizedSubject - $index');
 
+      return await dio.get(
+          "https://testauth-153e5c716660.herokuapp.com/til-subject/$normalizedSubject/$index",
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to load TILI subject test");
+      rethrow;
+    }
+  }
+
+  getTILSubjectTestsBySubject(String subject) async {
+    try {
+      String normalizedSubject = _normalizeTILSubject(subject);
+      return await dio.get(
+          "https://testauth-153e5c716660.herokuapp.com/til-subject/$normalizedSubject",
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to load TILI subject tests");
+      rethrow;
+    }
+  }
+
+  // TILI PRACTICE EXAMS (Text-based)
+  getTILPracticeExam(int index) async {
+    try {
+      print('🔍 [TILI PRACTICE EXAM] Requesting index: $index');
+      return await dio.get(
+          "https://testauth-153e5c716660.herokuapp.com/til-practice-exam/$index",
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to load TILI practice exam");
+      rethrow;
+    }
+  }
+
+  getAllTILPracticeExams() async {
+    try {
+      return await dio.get(
+          "https://testauth-153e5c716660.herokuapp.com/til-practice-exam",
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to load TILI practice exams");
+      rethrow;
+    }
+  }
+
+  String _normalizeTILSubject(String subject) {
+    // TILI backend expects lowercase for routing usually, but map known types
+    Map<String, String> subjectMap = {
+      'Mathematics': 'math',
+      'Reading Comprehension': 'reading',
+      'Physics': 'physics',
+      'Technical Knowledge': 'technical knowledge',
+    };
+    return subjectMap[subject] ?? subject.toLowerCase();
+  }
+
+  // PRACTICE TEST RESULTS
   updatePracticeTestResults({
     required String token,
     required int testNumber,
@@ -503,6 +570,332 @@ class AuthService {
       );
     } on DioException catch (e) {
       _handleError(e, customMessage: "Failed to delete test result");
+      rethrow;
+    }
+  }
+
+  // TILI PRACTICE EXAM RESULTS
+  saveTILPracticeExamResult({
+    required String token,
+    required int examIndex,
+    required String title,
+    required int correctCount,
+    required int wrongCount,
+    required int emptyCount,
+    required double score,
+    required Map<String, String> userAnswers,
+    required List<String> correctAnswers,
+  }) async {
+    try {
+      dio.options.headers["Authorization"] = "Bearer $token";
+      var res = await dio.post(
+          "https://testauth-153e5c716660.herokuapp.com/til-practice-exam-results/save",
+          data: {
+            "examIndex": examIndex,
+            "title": title,
+            "correctCount": correctCount,
+            "wrongCount": wrongCount,
+            "emptyCount": emptyCount,
+            "score": score,
+            "userAnswers": userAnswers,
+            "correctAnswers": correctAnswers,
+            "completedAt": DateTime.now().toIso8601String(),
+          },
+          options: Options(
+            contentType: Headers.jsonContentType,
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+      return res.data;
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to save exam result");
+      rethrow;
+    }
+  }
+
+  getTILPracticeExamResults(String token, {int limit = 5}) async {
+    try {
+      dio.options.headers["Authorization"] = "Bearer $token";
+      return await dio.get(
+          "https://testauth-153e5c716660.herokuapp.com/til-practice-exam-results?limit=$limit",
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to load exam results");
+      rethrow;
+    }
+  }
+
+  getCompletedTILPracticeExamIndices(String token) async {
+    try {
+      dio.options.headers["Authorization"] = "Bearer $token";
+      return await dio.get(
+          "https://testauth-153e5c716660.herokuapp.com/til-practice-exam-results/completed-indices",
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to load completed exams");
+      rethrow;
+    }
+  }
+
+  verifyPayment(String userId) async {
+    try {
+      return await dio.post(
+          "https://testauth-153e5c716660.herokuapp.com/verify-payment",
+          data: {"userId": userId},
+          options: Options(
+            contentType: Headers.formUrlEncodedContentType,
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Payment verification failed");
+      rethrow;
+    }
+  }
+
+  // SECURE IMAGE PROXY
+  Future<String> getSecureImageUrl(String githubUrl, String token) async {
+    final encodedUrl = Uri.encodeComponent(githubUrl);
+    final proxyUrl = 'https://testauth-153e5c716660.herokuapp.com/secure-image?url=$encodedUrl';
+    return proxyUrl;
+  }
+
+  Future<Response?> fetchSecureImage(String githubUrl, String token) async {
+    try {
+      final encodedUrl = Uri.encodeComponent(githubUrl);
+
+      dio.options.headers["Authorization"] = "Bearer $token";
+
+      return await dio.get(
+        "https://testauth-153e5c716660.herokuapp.com/secure-image?url=$encodedUrl",
+        options: Options(
+          responseType: ResponseType.bytes,
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+    } on DioException catch (e) {
+      print('⚠️ Secure image fetch failed: ${e.message}');
+      rethrow;
+    }
+  }
+
+  Future<Response?> initializePayment({
+    required String userId,
+    required String email,
+    required String name,
+    required bool acceptedTerms,
+    required bool acceptedPreliminaryInformation,
+  }) async {
+    try {
+      return await dio.post(
+        "https://testauth-153e5c716660.herokuapp.com/payment/initialize",
+        data: {
+          "userId": userId,
+          "email": email,
+          "name": name,
+          "acceptedTerms": acceptedTerms,
+          "acceptedPreliminaryInformation": acceptedPreliminaryInformation,
+        },
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to initialize payment");
+      rethrow;
+    }
+  }
+
+  Future<Response?> checkPaymentStatus(String userId) async {
+    try {
+      return await dio.post(
+        "https://testauth-153e5c716660.herokuapp.com/payment/check-status",
+        data: {"userId": userId},
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to check payment status");
+      rethrow;
+    }
+  }
+
+  // BOCCONI PAYMENT
+  Future<Response?> initializeBocconiPayment({
+    required String userId,
+    required String email,
+    required String name,
+    required bool acceptedTerms,
+    required bool acceptedPreliminaryInformation,
+  }) async {
+    try {
+      return await dio.post(
+        "https://testauth-153e5c716660.herokuapp.com/payment/bocconi/initialize",
+        data: {
+          "userId": userId,
+          "email": email,
+          "name": name,
+          "acceptedTerms": acceptedTerms,
+          "acceptedPreliminaryInformation": acceptedPreliminaryInformation,
+        },
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to initialize Bocconi payment");
+      rethrow;
+    }
+  }
+
+  // TILI PAYMENT
+  Future<Response?> initializeTiliPayment({
+    required String userId,
+    required String email,
+    required String name,
+    required bool acceptedTerms,
+    required bool acceptedPreliminaryInformation,
+    required String packageTier, // ✅ NEW
+  }) async {
+    try {
+      return await dio.post(
+        "https://testauth-153e5c716660.herokuapp.com/payment/tili/initialize",
+        data: {
+          "userId": userId,
+          "email": email,
+          "name": name,
+          "acceptedTerms": acceptedTerms,
+          "acceptedPreliminaryInformation": acceptedPreliminaryInformation,
+          "packageTier": packageTier, // ✅ NEW
+        },
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to initialize TILI payment");
+      rethrow;
+    }
+  }
+
+  // WEEKLY ACTIVITY
+  Future<Response?> getWeeklyActivity(String token) async {
+    try {
+      dio.options.headers["Authorization"] = "Bearer $token";
+      return await dio.get(
+        "https://testauth-153e5c716660.herokuapp.com/user/weekly-activity",
+        options: Options(
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to load weekly activity");
+      rethrow;
+    }
+  }
+
+  // CHECK USER PAYMENT STATUS (FOR POLLING)
+  Future<Response?> checkUserPaymentStatus(String userId) async {
+    try {
+      return await dio.post(
+        "https://testauth-153e5c716660.herokuapp.com/user/check-user-payment-status",
+        data: {"userId": userId},
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+    } on DioException catch (e) {
+      print('❌ [CHECK PAYMENT STATUS] Error: $e');
+      return null;
+    }
+  }
+
+
+  getFlashcardsBySubject(String subject) async {
+    try {
+      return await dio.get(
+          "https://testauth-153e5c716660.herokuapp.com/flashcard/${subject.toLowerCase()}",
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to load flashcards");
+      rethrow;
+    }
+  }
+
+  getFlashcard(String subject, int index) async {
+    try {
+      return await dio.get(
+          "https://testauth-153e5c716660.herokuapp.com/flashcard/${subject.toLowerCase()}/$index",
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to load flashcard");
+      rethrow;
+    }
+  }
+
+  getAllFlashcards() async {
+    try {
+      return await dio.get(
+          "https://testauth-153e5c716660.herokuapp.com/flashcards",
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to load all flashcards");
+      rethrow;
+    }
+  }
+
+  // FLASHCARD PROGRESS SYNC (Database)
+  getFlashcardProgress(String userId) async {
+    try {
+      return await dio.get(
+          "https://testauth-153e5c716660.herokuapp.com/progress/$userId",
+          options: Options(
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to load flashcard progress");
+      rethrow;
+    }
+  }
+
+  saveFlashcardProgress(String userId, String flashcardId, String status) async {
+    try {
+      return await dio.post(
+          "https://testauth-153e5c716660.herokuapp.com/progress/update",
+          data: {
+            "userId": userId,
+            "flashcardId": flashcardId,
+            "status": status
+          },
+          options: Options(
+            contentType: Headers.jsonContentType,
+            validateStatus: (status) => status != null && status < 500,
+          )
+      );
+    } on DioException catch (e) {
+      _handleError(e, customMessage: "Failed to save flashcard progress");
       rethrow;
     }
   }
